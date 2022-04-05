@@ -3,7 +3,7 @@
 [![Documentation](https://docs.rs/steamworks/badge.svg)](https://docs.rs/steamworks)
 ![License](https://img.shields.io/crates/l/steamworks.svg)
 
-This crate provides rust friendly bindings to the [steamworks sdk](https://partner.steamgames.com/doc/sdk) version 153
+This crate provides rust friendly bindings to the [steamworks sdk](https://partner.steamgames.com/doc/sdk) v1.53a
 
 
 ## Usage
