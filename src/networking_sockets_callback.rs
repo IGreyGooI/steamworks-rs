@@ -82,7 +82,7 @@ impl<Manager: 'static> ConnectionCallbackHandler<Manager> {
 
     fn reject_connection(&self, connection_handle: sys::HSteamNetConnection) {
         if let Some(inner) = self.inner.upgrade() {
-            NetConnection::new_internal(connection_handle, self.sockets, inner.clone()).close(
+            NetConnection::new_internal(connection_handle, self.sockets, inner).close(
                 NetConnectionEnd::AppGeneric,
                 Some("no new connections will be accepted"),
                 false,

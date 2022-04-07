@@ -303,7 +303,7 @@ impl<Manager: 'static> ListenSocket<Manager> {
             .sockets
             .insert(handle, (Arc::downgrade(&inner_socket), sender));
         let callback_handle =
-            networking_sockets_callback::get_or_create_connection_callback(inner.clone(), sockets);
+            networking_sockets_callback::get_or_create_connection_callback(inner, sockets);
         ListenSocket {
             inner: inner_socket,
             _callback_handle: callback_handle,

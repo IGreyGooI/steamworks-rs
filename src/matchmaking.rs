@@ -124,9 +124,7 @@ impl<Manager> Matchmaking<Manager> {
                 api_call,
                 CALLBACK_BASE_ID + 4,
                 move |v, io_error| {
-                    cb(if io_error {
-                        Err(())
-                    } else if v.m_EChatRoomEnterResponse != 1 {
+                    cb(if io_error || v.m_EChatRoomEnterResponse != 1 {
                         Err(())
                     } else {
                         Ok(LobbyId(v.m_ulSteamIDLobby))
@@ -142,9 +140,9 @@ impl<Manager> Matchmaking<Manager> {
         let key = CString::new(key).unwrap();
         let data = unsafe {
             let data = sys::SteamAPI_ISteamMatchmaking_GetLobbyData(self.mm, lobby.0, key.as_ptr());
-            let data = CStr::from_ptr(data);
+            
 
-            data
+            CStr::from_ptr(data)
         };
 
         let data = data.to_str().unwrap();

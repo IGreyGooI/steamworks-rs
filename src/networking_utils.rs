@@ -126,7 +126,7 @@ impl RelayNetworkStatus {
     /// completed.  Anything else means you are not ready yet, or
     /// there is a significant problem.
     pub fn availability(&self) -> NetworkingAvailabilityResult {
-        self.availability.clone()
+        self.availability
     }
 
     /// True if latency measurement is in progress (or pending, awaiting a prerequisite).
@@ -140,7 +140,7 @@ impl RelayNetworkStatus {
     /// Failure to obtain the network config almost always indicates
     /// a problem with the local internet connection.
     pub fn network_config(&self) -> NetworkingAvailabilityResult {
-        self.network_config.clone()
+        self.network_config
     }
 
     /// Current ability to communicate with ANY relay.  Note that
@@ -149,7 +149,7 @@ impl RelayNetworkStatus {
     /// (However, just because you can reach a single relay doesn't
     /// mean that the local connection is in perfect health.)
     pub fn any_relay(&self) -> NetworkingAvailabilityResult {
-        self.any_relay.clone()
+        self.any_relay
     }
 
     /// Non-localized English language status.  For diagnostic/debugging

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::networking_sockets::{InnerSocket, NetConnection};
 use crate::networking_types::NetConnectionError::UnhandledType;
 use crate::{Callback, Inner, SResult, SteamId};
-use std::convert::{TryFrom, TryInto};
+use std::{convert::{TryFrom, TryInto}, ffi::CStr};
 use std::ffi::{c_void, CString};
 use std::fmt::{Debug, Display, Formatter};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
@@ -1140,7 +1140,7 @@ impl NetConnectionStatusChanged {
                         ),
                     }))
                 } else {
-                    return Err(NetConnectionError::InvalidRemote);
+                    Err(NetConnectionError::InvalidRemote)
                 }
             }
             Ok(NetworkingConnectionState::FindingRoute) => {
@@ -1159,7 +1159,7 @@ impl NetConnectionStatusChanged {
                         ),
                     }))
                 } else {
-                    return Err(NetConnectionError::InvalidRemote);
+                    Err(NetConnectionError::InvalidRemote)
                 }
             }
             Ok(NetworkingConnectionState::ClosedByPeer)
@@ -1174,7 +1174,7 @@ impl NetConnectionStatusChanged {
                             .expect("disconnect event received, but no valid end reason was given"),
                     }))
                 } else {
-                    return Err(NetConnectionError::InvalidRemote);
+                    Err(NetConnectionError::InvalidRemote)
                 }
             }
             Err(err) => Err(NetConnectionError::UnknownType(err)),
@@ -1428,44 +1428,14 @@ impl NetworkingIdentity {
     }
 
     pub fn debug_string(&self) -> String {
-        // For some reason I can't get the original function to work,
-        // so I decided to recreate the original from https://github.com/ValveSoftware/GameNetworkingSockets/blob/529901e7c1caf50928ac8814cad205d192bbf27d/src/steamnetworkingsockets/steamnetworkingsockets_shared.cpp
-
-        // let mut buffer = vec![0i8; NETWORK_IDENTITY_STRING_BUFFER_SIZE];
-        // let string = unsafe {
-        //     sys::SteamAPI_SteamNetworkingIdentity_ToString(
-        //         self.as_ptr() as *mut sys::SteamNetworkingIdentity,
-        //         buffer.as_mut_ptr(),
-        //         NETWORK_IDENTITY_STRING_BUFFER_SIZE as u32,
-        //     );
-        //     CString::from_raw(buffer.as_mut_ptr())
-        // };
-        // string.into_string().unwrap()
-
+        let mut buffer = [0i8; sys::SteamNetworkingIdentity_k_cchMaxString as usize];
         unsafe {
-            match self.inner.m_eType {
-                sys::ESteamNetworkingIdentityType::k_ESteamNetworkingIdentityType_Invalid => {
-                    "invalid".to_string()
-                }
-                sys::ESteamNetworkingIdentityType::k_ESteamNetworkingIdentityType_SteamID => {
-                    let id = self.inner.__bindgen_anon_1.m_steamID64;
-                    format!("steamid:{}", id)
-                }
-                sys::ESteamNetworkingIdentityType::k_ESteamNetworkingIdentityType_IPAddress => {
-                    let ip = SteamIpAddr::from(self.inner.__bindgen_anon_1.m_ip);
-                    format!("ip:{}", ip)
-                }
-                sys::ESteamNetworkingIdentityType::k_ESteamNetworkingIdentityType_GenericString => {
-                    unimplemented!()
-                }
-                sys::ESteamNetworkingIdentityType::k_ESteamNetworkingIdentityType_GenericBytes => {
-                    unimplemented!()
-                }
-                sys::ESteamNetworkingIdentityType::k_ESteamNetworkingIdentityType_UnknownType => {
-                    unimplemented!()
-                }
-                ty => format!("bad_type:{}", ty as u32),
-            }
+            sys::SteamAPI_SteamNetworkingIdentity_ToString(
+                self.as_ptr() as *mut sys::SteamNetworkingIdentity,
+                buffer.as_mut_ptr(),
+                sys::SteamNetworkingIdentity_k_cchMaxString as u32,
+            );
+            CStr::from_ptr(buffer.as_ptr()).to_str().unwrap().to_owned()  
         }
     }
 
@@ -1499,6 +1469,17 @@ impl From<SteamId> for NetworkingIdentity {
 impl Default for NetworkingIdentity {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl PartialEq for NetworkingIdentity {
+    fn eq(&self, other: &Self) -> bool {
+        unsafe {
+            sys::SteamAPI_SteamNetworkingIdentity_IsEqualTo(
+                self.as_ptr() as *mut _,
+                other.as_ptr() as *mut _,
+            )
+        }
     }
 }
 

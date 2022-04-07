@@ -52,9 +52,9 @@ pub enum UGCType {
     GameManagedItems,
     All,
 }
-impl Into<sys::EUGCMatchingUGCType> for UGCType {
-    fn into(self) -> sys::EUGCMatchingUGCType {
-        match self {
+impl From<UGCType> for sys::EUGCMatchingUGCType {
+    fn from(val: UGCType) -> Self {
+        match val {
             UGCType::Items => sys::EUGCMatchingUGCType::k_EUGCMatchingUGCType_Items,
             UGCType::ItemsMtx => sys::EUGCMatchingUGCType::k_EUGCMatchingUGCType_Items_Mtx,
             UGCType::ItemsReadyToUse => {
@@ -487,7 +487,7 @@ impl<Manager> UGC<Manager> {
             let gotten_count =
                 sys::SteamAPI_ISteamUGC_GetSubscribedItems(self.ugc, data.as_mut_ptr(), count);
             debug_assert!(count == gotten_count);
-            data.into_iter().map(|v| PublishedFileId(v)).collect()
+            data.into_iter().map(PublishedFileId).collect()
         }
     }
 
@@ -583,7 +583,7 @@ impl<Manager> UGC<Manager> {
         &self,
         mut items: Vec<PublishedFileId>,
     ) -> Result<ItemListDetailsQuery<Manager>, CreateQueryError> {
-        debug_assert!(items.len() > 0);
+        debug_assert!(!items.is_empty());
 
         let res = unsafe {
             sys::SteamAPI_ISteamUGC_CreateQueryUGCDetailsRequest(
@@ -614,7 +614,7 @@ impl<Manager> UGC<Manager> {
             sys::SteamAPI_ISteamUGC_CreateQueryUGCDetailsRequest(
                 self.ugc,
                 items.as_mut_ptr() as _,
-                1 as _,
+                1_u32,
             )
         };
 
@@ -1456,7 +1456,7 @@ impl<'a> QueryResults<'a> {
             let tags = CStr::from_ptr(raw_details.m_rgchTags.as_ptr())
                 .to_string_lossy()
                 .split(',')
-                .map(|s| String::from(s))
+                .map(String::from)
                 .collect::<Vec<_>>();
 
             Some(QueryResult {

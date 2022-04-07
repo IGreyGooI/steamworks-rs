@@ -55,7 +55,7 @@ where
     }
     CallbackHandle {
         id: C::ID,
-        inner: Arc::downgrade(&inner),
+        inner: Arc::downgrade(inner),
     }
 }
 

@@ -125,7 +125,7 @@ impl Drop for SteamParamStringArray {
 impl SteamParamStringArray {
     pub(crate) fn new<S: AsRef<str>>(vec: &[S]) -> SteamParamStringArray {
         SteamParamStringArray(
-            vec.into_iter()
+            vec.iter()
                 .map(|s| {
                     CString::new(s.as_ref())
                         .expect("String passed could not be converted to a c string")

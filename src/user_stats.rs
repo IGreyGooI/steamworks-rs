@@ -505,7 +505,7 @@ fn test() {
     stats.find_leaderboard("steamworks_test", |lb| {
         println!("Got: {:?}", lb);
     });
-    let c2 = client.clone();
+    let c2 = client;
     stats.find_or_create_leaderboard(
         "steamworks_test_created",
         LeaderboardSortMethod::Descending,
