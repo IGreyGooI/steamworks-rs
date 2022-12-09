@@ -145,8 +145,6 @@ impl<Manager> Matchmaking<Manager> {
         let key = CString::new(key).unwrap();
         let data = unsafe {
             let data = sys::SteamAPI_ISteamMatchmaking_GetLobbyData(self.mm, lobby.0, key.as_ptr());
-            
-
             CStr::from_ptr(data)
         };
 

@@ -48,10 +48,8 @@ impl<Manager> Input<Manager> {
         let handles = controllers.as_mut();
         assert!(handles.len() >= sys::STEAM_INPUT_MAX_COUNT as usize);
         unsafe {
-            return sys::SteamAPI_ISteamInput_GetConnectedControllers(
-                self.input,
-                handles.as_mut_ptr(),
-            ) as usize;
+            sys::SteamAPI_ISteamInput_GetConnectedControllers(self.input, handles.as_mut_ptr())
+                as usize
         }
     }
 

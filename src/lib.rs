@@ -241,10 +241,8 @@ where
                             cb(apicall_result.as_mut_ptr() as *mut _, failed);
                         }
                     }
-                } else {
-                    if let Some(cb) = callbacks.callbacks.get_mut(&callback.m_iCallback) {
-                        cb(callback.m_pubParam as *mut _);
-                    }
+                } else if let Some(cb) = callbacks.callbacks.get_mut(&callback.m_iCallback) {
+                    cb(callback.m_pubParam as *mut _);
                 }
                 sys::SteamAPI_ManualDispatch_FreeLastCallback(pipe);
             }
@@ -272,7 +270,7 @@ impl<Manager> Client<Manager> {
             let utils = sys::SteamAPI_SteamUtils_v010();
             debug_assert!(!utils.is_null());
             Utils {
-                utils: utils,
+                utils,
                 _inner: self.inner.clone(),
             }
         }
@@ -284,7 +282,7 @@ impl<Manager> Client<Manager> {
             let mm = sys::SteamAPI_SteamMatchmaking_v009();
             debug_assert!(!mm.is_null());
             Matchmaking {
-                mm: mm,
+                mm,
                 inner: self.inner.clone(),
             }
         }
@@ -296,7 +294,7 @@ impl<Manager> Client<Manager> {
             let net = sys::SteamAPI_SteamNetworking_v006();
             debug_assert!(!net.is_null());
             Networking {
-                net: net,
+                net,
                 _inner: self.inner.clone(),
             }
         }
@@ -308,7 +306,7 @@ impl<Manager> Client<Manager> {
             let apps = sys::SteamAPI_SteamApps_v008();
             debug_assert!(!apps.is_null());
             Apps {
-                apps: apps,
+                apps,
                 _inner: self.inner.clone(),
             }
         }
@@ -320,7 +318,7 @@ impl<Manager> Client<Manager> {
             let friends = sys::SteamAPI_SteamFriends_v017();
             debug_assert!(!friends.is_null());
             Friends {
-                friends: friends,
+                friends,
                 inner: self.inner.clone(),
             }
         }
