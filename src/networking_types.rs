@@ -5,12 +5,15 @@ use serde::{Deserialize, Serialize};
 use crate::networking_sockets::{InnerSocket, NetConnection};
 use crate::networking_types::NetConnectionError::UnhandledType;
 use crate::{Callback, Inner, SResult, SteamId};
-use std::{convert::{TryFrom, TryInto}, ffi::CStr};
 use std::ffi::{c_void, CString};
 use std::fmt::{Debug, Display, Formatter};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::panic::catch_unwind;
 use std::sync::Arc;
+use std::{
+    convert::{TryFrom, TryInto},
+    ffi::CStr,
+};
 use steamworks_sys as sys;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -1416,8 +1419,7 @@ impl NetworkingIdentity {
         }
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn ip_addr(&self) -> Option<SteamIpAddr> {
+    pub fn ip_addr(&self) -> Option<SteamIpAddr> {
         unsafe {
             let ip = sys::SteamAPI_SteamNetworkingIdentity_GetIPAddr(self.as_ptr() as *mut _);
             if ip.is_null() {
@@ -1444,7 +1446,7 @@ impl NetworkingIdentity {
                 buffer.as_mut_ptr(),
                 sys::SteamNetworkingIdentity_k_cchMaxString as u32,
             );
-            CStr::from_ptr(buffer.as_ptr()).to_str().unwrap().to_owned()  
+            CStr::from_ptr(buffer.as_ptr()).to_str().unwrap().to_owned()
         }
     }
 
@@ -1693,7 +1695,7 @@ pub enum MessageError {
 }
 
 #[derive(Copy, Clone)]
-pub(crate) struct SteamIpAddr {
+pub struct SteamIpAddr {
     inner: sys::SteamNetworkingIPAddr,
 }
 
@@ -1753,18 +1755,25 @@ impl SteamIpAddr {
     }
 
     pub fn get_ipv4(&self) -> Option<Ipv4Addr> {
-        let ip = unsafe {
-            sys::SteamAPI_SteamNetworkingIPAddr_GetIPv4(&self.inner as *const _ as *mut _)
-        };
-        if ip == 0 {
-            None
-        } else {
-            Some(Ipv4Addr::from(ip))
+        unsafe {
+            if sys::SteamAPI_SteamNetworkingIPAddr_IsIPv4(&self.inner as *const _ as *mut _) {
+                let ip =
+                    sys::SteamAPI_SteamNetworkingIPAddr_GetIPv4(&self.inner as *const _ as *mut _);
+                Some(Ipv4Addr::from(ip))
+            } else {
+                None
+            }
         }
     }
 
     pub fn is_ipv4(&self) -> bool {
         unsafe { sys::SteamAPI_SteamNetworkingIPAddr_IsIPv4(self.as_ptr() as *mut _) }
+    }
+
+    pub fn get_ipv6(&self) -> Ipv6Addr {
+        // since the ipv4 is mapped to ipv6 we can assume it is always a valid ipv6 address
+        let ipv6 = unsafe { self.inner.__bindgen_anon_1.m_ipv6 };
+        Ipv6Addr::from(ipv6)
     }
 
     pub fn as_ptr(&self) -> *const sys::SteamNetworkingIPAddr {
@@ -1856,6 +1865,16 @@ impl From<SocketAddr> for SteamIpAddr {
     }
 }
 
+impl From<SteamIpAddr> for SocketAddr {
+    fn from(from: SteamIpAddr) -> Self {
+        if let Some(ip) = from.get_ipv4() {
+            SocketAddr::V4(SocketAddrV4::new(ip, from.inner.m_port))
+        } else {
+            SocketAddr::V6(SocketAddrV6::new(from.get_ipv6(), from.inner.m_port, 0, 0))
+        }
+    }
+}
+
 impl From<SocketAddrV4> for SteamIpAddr {
     fn from(ip: SocketAddrV4) -> Self {
         let mut steam_ip = Self::new();
@@ -1871,6 +1890,7 @@ impl From<SocketAddrV6> for SteamIpAddr {
         steam_ip
     }
 }
+
 impl From<sys::SteamNetworkingIPAddr> for SteamIpAddr {
     fn from(inner: sys::SteamNetworkingIPAddr) -> Self {
         Self { inner }
@@ -1881,16 +1901,21 @@ impl From<sys::SteamNetworkingIPAddr> for SteamIpAddr {
 mod tests {
     use super::*;
     use crate::Client;
+    use serial_test::serial;
     use std::net::Ipv4Addr;
 
     #[test]
+    #[serial]
     fn test_new_ip() {
+        let _client = Client::init().unwrap();
         let ip = SteamIpAddr::new();
         assert_eq!(&ip.to_string(true), "[::]:0");
     }
 
     #[test]
+    #[serial]
     fn test_set_ipv4() {
+        let _client = Client::init().unwrap();
         let mut ip = SteamIpAddr::new();
         let addr = Ipv4Addr::new(192, 168, 0, 123);
         ip.set_ipv4(SocketAddrV4::new(addr, 5555));
@@ -1899,19 +1924,43 @@ mod tests {
     }
 
     #[test]
+    fn test_ip() {
+        let _client = Client::init().unwrap();
+        let test_cases_ipv4 = [
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(192, 168, 0, 123), 1)),
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 1)),
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(255, 255, 255, 255), 1)),
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), 1)),
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(10, 0, 0, 1), 1)),
+            SocketAddr::V6(SocketAddrV6::new(Ipv6Addr::LOCALHOST, 1, 0, 0)),
+            SocketAddr::V6(SocketAddrV6::new(Ipv6Addr::UNSPECIFIED, 1, 0, 0)),
+        ];
+        for addr in test_cases_ipv4 {
+            let steam_ip = SteamIpAddr::from(addr);
+            let socket_addr = SocketAddr::from(steam_ip);
+            assert_eq!(addr, socket_addr);
+        }
+    }
+
+    #[test]
+    #[serial]
     fn test_network_identity_steam_id() {
+        let _client = Client::init().unwrap();
         let id = NetworkingIdentity::new_steam_id(SteamId(123456));
         assert_eq!("steamid:123456", &id.debug_string())
     }
 
     #[test]
+    #[serial]
     fn test_network_identity_ip() {
+        let _client = Client::init().unwrap();
         let id =
             NetworkingIdentity::new_ip(SocketAddr::new(Ipv4Addr::new(192, 168, 0, 5).into(), 1234));
         assert_eq!("ip:192.168.0.5:1234", &id.debug_string())
     }
 
     #[test]
+    #[serial]
     fn test_allocate_and_free_message() {
         let (client, _single) = Client::init().unwrap();
         let utils = client.networking_utils();

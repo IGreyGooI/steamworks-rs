@@ -918,13 +918,18 @@ mod tests {
             .create_listen_socket_ip(bound_ip, debug_config.clone())
             .unwrap();
 
+        for _ in 0..10 {
+            single.run_callbacks();
+            std::thread::sleep(::std::time::Duration::from_millis(50));
+        }
+
         println!("Create connection");
         let to_server = sockets
             .connect_by_ip_address(bound_ip, debug_config)
             .unwrap();
 
         println!("Run callbacks");
-        for _ in 0..5 {
+        for _ in 0..10 {
             single.run_callbacks();
             std::thread::sleep(::std::time::Duration::from_millis(50));
         }
@@ -939,7 +944,7 @@ mod tests {
         }
 
         println!("Run callbacks");
-        for _ in 0..5 {
+        for _ in 0..10 {
             single.run_callbacks();
             std::thread::sleep(::std::time::Duration::from_millis(50));
         }
