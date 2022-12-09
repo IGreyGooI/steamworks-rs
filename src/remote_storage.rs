@@ -1,12 +1,43 @@
 use super::*;
 #[cfg(test)]
-use serial_test_derive::serial;
+use serial_test::serial;
 
 /// Access to the steam remote storage interface
 pub struct RemoteStorage<Manager> {
     pub(crate) rs: *mut sys::ISteamRemoteStorage,
     pub(crate) util: *mut sys::ISteamUtils,
     pub(crate) inner: Arc<Inner<Manager>>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PublishedFileVisibility {
+    Public,
+    FriendsOnly,
+    Private,
+    Unlisted,
+}
+
+impl From<sys::ERemoteStoragePublishedFileVisibility> for PublishedFileVisibility {
+    fn from(visibility: sys::ERemoteStoragePublishedFileVisibility) -> Self {
+        match visibility {
+            sys::ERemoteStoragePublishedFileVisibility::k_ERemoteStoragePublishedFileVisibilityPublic => PublishedFileVisibility::Public,
+            sys::ERemoteStoragePublishedFileVisibility::k_ERemoteStoragePublishedFileVisibilityFriendsOnly => PublishedFileVisibility::FriendsOnly,
+            sys::ERemoteStoragePublishedFileVisibility::k_ERemoteStoragePublishedFileVisibilityPrivate => PublishedFileVisibility::Private,
+            sys::ERemoteStoragePublishedFileVisibility::k_ERemoteStoragePublishedFileVisibilityUnlisted => PublishedFileVisibility::Unlisted,
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl Into<sys::ERemoteStoragePublishedFileVisibility> for PublishedFileVisibility {
+    fn into(self) -> sys::ERemoteStoragePublishedFileVisibility {
+        match self {
+            PublishedFileVisibility::Public => sys::ERemoteStoragePublishedFileVisibility::k_ERemoteStoragePublishedFileVisibilityPublic,
+            PublishedFileVisibility::FriendsOnly => sys::ERemoteStoragePublishedFileVisibility::k_ERemoteStoragePublishedFileVisibilityFriendsOnly,
+            PublishedFileVisibility::Private => sys::ERemoteStoragePublishedFileVisibility::k_ERemoteStoragePublishedFileVisibilityPrivate,
+            PublishedFileVisibility::Unlisted => sys::ERemoteStoragePublishedFileVisibility::k_ERemoteStoragePublishedFileVisibilityUnlisted,
+        }
+    }
 }
 
 impl<Manager> Clone for RemoteStorage<Manager> {

@@ -6,7 +6,7 @@ use crate::networking_types::{
 };
 use crate::{CallbackHandle, Inner, SResult};
 #[cfg(test)]
-use serial_test_derive::serial;
+use serial_test::serial;
 use std::convert::TryInto;
 use std::ffi::CString;
 use std::net::SocketAddr;
@@ -378,7 +378,7 @@ impl<Manager: 'static> ListenSocket<Manager> {
                 .into_iter()
                 .map(|x| {
                     if x >= 0 {
-                        Ok(MessageNumber(x))
+                        Ok(MessageNumber(x as u64))
                     } else {
                         Err((-x).try_into().expect("invalid error code"))
                     }
@@ -701,7 +701,7 @@ impl<Manager: 'static> NetConnection<Manager> {
                 &mut out_message_number,
             );
             match result {
-                sys::EResult::k_EResultOK => Ok(MessageNumber(out_message_number)),
+                sys::EResult::k_EResultOK => Ok(MessageNumber(out_message_number as u64)),
                 error => Err(error.into()),
             }
         }

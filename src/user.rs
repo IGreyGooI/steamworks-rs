@@ -1,6 +1,6 @@
 use super::*;
 #[cfg(test)]
-use serial_test_derive::serial;
+use serial_test::serial;
 
 /// Access to the steam user interface
 pub struct User<Manager> {
@@ -164,6 +164,7 @@ fn test() {
 
 /// A handle for an authentication ticket that can be used to cancel
 /// it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AuthTicket(pub(crate) sys::HAuthTicket);
 
 /// Called when generating a authentication session ticket.

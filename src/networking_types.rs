@@ -13,9 +13,15 @@ use std::panic::catch_unwind;
 use std::sync::Arc;
 use steamworks_sys as sys;
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct MessageNumber(pub(crate) i64);
+pub struct MessageNumber(pub(crate) u64);
+
+impl From<MessageNumber> for u64 {
+    fn from(number: MessageNumber) -> Self {
+        number.0
+    }
+}
 
 bitflags! {
     #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -1100,6 +1106,9 @@ impl From<sys::SteamNetConnectionInfo_t> for NetConnectionInfo {
 pub(crate) struct NetConnectionStatusChanged {
     pub(crate) connection: sys::HSteamNetConnection,
     pub(crate) connection_info: NetConnectionInfo,
+
+    // Debug is intentionally ignored during dead-code analysis
+    #[allow(dead_code)]
     pub(crate) old_state: NetworkingConnectionState,
 }
 
@@ -1550,7 +1559,7 @@ impl<Manager> NetworkingMessage<Manager> {
     /// Message number assigned by the sender.
     /// This is not used for outbound messages
     pub fn message_number(&self) -> MessageNumber {
-        unsafe { MessageNumber((*self.message).m_nMessageNumber) }
+        unsafe { MessageNumber((*self.message).m_nMessageNumber as u64) }
     }
 
     /// Bitmask of k_nSteamNetworkingSend_xxx flags.
