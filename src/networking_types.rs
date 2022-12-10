@@ -1901,11 +1901,9 @@ impl From<sys::SteamNetworkingIPAddr> for SteamIpAddr {
 mod tests {
     use super::*;
     use crate::Client;
-    use serial_test::serial;
     use std::net::Ipv4Addr;
 
     #[test]
-    #[serial]
     fn test_new_ip() {
         let _client = Client::init().unwrap();
         let ip = SteamIpAddr::new();
@@ -1913,7 +1911,6 @@ mod tests {
     }
 
     #[test]
-    #[serial]
     fn test_set_ipv4() {
         let _client = Client::init().unwrap();
         let mut ip = SteamIpAddr::new();
@@ -1943,7 +1940,6 @@ mod tests {
     }
 
     #[test]
-    #[serial]
     fn test_network_identity_steam_id() {
         let _client = Client::init().unwrap();
         let id = NetworkingIdentity::new_steam_id(SteamId(123456));
@@ -1951,7 +1947,6 @@ mod tests {
     }
 
     #[test]
-    #[serial]
     fn test_network_identity_ip() {
         let _client = Client::init().unwrap();
         let id =
@@ -1960,7 +1955,6 @@ mod tests {
     }
 
     #[test]
-    #[serial]
     fn test_allocate_and_free_message() {
         let (client, _single) = Client::init().unwrap();
         let utils = client.networking_utils();

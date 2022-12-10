@@ -1,6 +1,4 @@
 use super::*;
-#[cfg(test)]
-use serial_test::serial;
 use std::net::Ipv4Addr;
 
 /// The main entry point into the steam client for servers.
@@ -63,6 +61,7 @@ impl Server {
         version: &str,
     ) -> SResult<(Server, SingleClient<ServerManager>)> {
         unsafe {
+            let _manager = ServerManager::new();
             let version = CString::new(version).unwrap();
             let raw_ip: u32 = ip.into();
             let server_mode = match server_mode {
@@ -85,7 +84,7 @@ impl Server {
             sys::SteamAPI_ManualDispatch_Init();
             let server_raw = sys::SteamAPI_SteamGameServer_v014();
             let server = Arc::new(Inner {
-                _manager: ServerManager { _priv: () },
+                _manager,
                 callbacks: Mutex::new(Callbacks {
                     callbacks: HashMap::new(),
                     call_results: HashMap::new(),
@@ -326,7 +325,6 @@ impl Server {
 }
 
 #[test]
-#[serial]
 fn test() {
     let (server, single) = Server::init(
         [127, 0, 0, 1].into(),
@@ -376,6 +374,19 @@ fn test() {
 /// Manages keeping the steam api active for servers
 pub struct ServerManager {
     _priv: (),
+    #[cfg(test)]
+    _test_lock_guard: parking_lot::MutexGuard<'static, ()>,
+}
+impl ServerManager {
+    fn new() -> ServerManager {
+        #[cfg(test)]
+        let _test_lock_guard = TEST_LOCK.lock();
+        ServerManager {
+            _priv: (),
+            #[cfg(test)]
+            _test_lock_guard,
+        }
+    }
 }
 
 unsafe impl Manager for ServerManager {

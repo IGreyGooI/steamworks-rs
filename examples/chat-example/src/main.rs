@@ -169,8 +169,8 @@ async fn main() {
 
                 while let Some(size) = networking.is_p2p_packet_available() {
                     let mut empty_array = vec![0; size];
-                    let mut buffer = empty_array.as_mut_slice();
-                    if let Some((sender, _)) = networking.read_p2p_packet(&mut buffer) {
+                    let buffer = empty_array.as_mut_slice();
+                    if let Some((sender, _)) = networking.read_p2p_packet(buffer) {
                         //Host gets message from one of the players and sends this message to other players
                         if lobby_state.is_host {
                             for peer in lobby_state.peers.iter() {

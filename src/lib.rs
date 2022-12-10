@@ -54,6 +54,12 @@ mod user;
 mod user_stats;
 mod utils;
 
+#[cfg(test)]
+static TEST_LOCK: parking_lot::Mutex<()> = parking_lot::Mutex::const_new(
+    <parking_lot::RawMutex as parking_lot::lock_api::RawMutex>::INIT,
+    (),
+);
+
 pub type SResult<T> = Result<T, SteamError>;
 
 // A note about thread-safety:
@@ -154,13 +160,14 @@ impl Client<ClientManager> {
         static_assert_send::<Client<ClientManager>>();
         static_assert_sync::<Client<ClientManager>>();
         static_assert_send::<SingleClient<ClientManager>>();
+        let _manager = ClientManager::new();
         unsafe {
             if !sys::SteamAPI_Init() {
                 return Err(SteamError::InitFailed);
             }
             sys::SteamAPI_ManualDispatch_Init();
             let client = Arc::new(Inner {
-                _manager: ClientManager { _priv: () },
+                _manager,
                 callbacks: Mutex::new(Callbacks {
                     callbacks: HashMap::new(),
                     call_results: HashMap::new(),
@@ -195,6 +202,7 @@ impl Client<ClientManager> {
     /// * The game isn't running on the same user/level as the steam client
     /// * The user doesn't own a license for the game.
     /// * The app ID isn't completely set up.
+    #[cfg(not(test))]
     pub fn init_app<ID: Into<AppId>>(
         app_id: ID,
     ) -> SResult<(Client<ClientManager>, SingleClient<ClientManager>)> {
@@ -429,6 +437,17 @@ pub unsafe trait Manager {
 /// Manages keeping the steam api active for clients
 pub struct ClientManager {
     _priv: (),
+    #[cfg(test)]
+    _test_lock_guard: parking_lot::MutexGuard<'static, ()>,
+}
+impl ClientManager {
+    fn new() -> ClientManager {
+        ClientManager {
+            _priv: (),
+            #[cfg(test)]
+            _test_lock_guard: TEST_LOCK.lock(),
+        }
+    }
 }
 
 unsafe impl Manager for ClientManager {
@@ -541,12 +560,9 @@ impl GameId {
 
 #[cfg(test)]
 mod tests {
-    use serial_test::serial;
-
     use super::*;
 
     #[test]
-    #[serial]
     fn basic_test() {
         let (client, single) = Client::init().unwrap();
 
@@ -587,6 +603,8 @@ mod tests {
 
     #[test]
     fn steamid_test() {
+        let (_client, _single) = Client::init().unwrap();
+
         let steamid = SteamId(76561198040894045);
         assert_eq!("STEAM_0:1:40314158", steamid.steamid32());
 

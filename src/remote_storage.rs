@@ -1,6 +1,4 @@
 use super::*;
-#[cfg(test)]
-use serial_test::serial;
 
 /// Access to the steam remote storage interface
 pub struct RemoteStorage<Manager> {
@@ -300,7 +298,6 @@ pub struct SteamFileInfo {
 }
 
 #[test]
-#[serial]
 fn test_cloud() {
     use std::io::{Read, Write};
     let (client, _single) = Client::init().unwrap();

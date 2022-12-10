@@ -114,7 +114,7 @@ impl<Manager: 'static> NetworkingMessages<Manager> {
     /// `batch_size` is the maximum number of messages that can be received at once.
     ///
     /// # Example
-    /// ```
+    /// ```no_run
     /// # use steamworks::Client;
     /// # use std::time::Duration;
     /// let (client, single) = Client::init().unwrap();
@@ -164,7 +164,7 @@ impl<Manager: 'static> NetworkingMessages<Manager> {
     /// Calling this function more than once will replace the previous callback.
     ///
     /// # Example
-    /// ```
+    /// ```no_run
     /// # use steamworks::Client;
     /// # use std::time::Duration;
     /// let (client, single) = Client::init().unwrap();
