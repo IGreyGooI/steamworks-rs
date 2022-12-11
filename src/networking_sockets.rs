@@ -1,9 +1,9 @@
-use crate::networking_sockets_callback;
 use crate::networking_types::{
     ListenSocketEvent, MessageNumber, NetConnectionEnd, NetworkingAvailability,
     NetworkingAvailabilityError, NetworkingConfigEntry, NetworkingIdentity, NetworkingMessage,
     SendFlags, SteamIpAddr,
 };
+use crate::{networking_sockets_callback, networking_types::NetConnectionInfo};
 use crate::{CallbackHandle, Inner, SResult};
 use std::convert::TryInto;
 use std::ffi::CString;
@@ -249,6 +249,25 @@ impl<Manager: 'static> NetworkingSockets<Manager> {
         &self,
     ) -> Result<NetworkingAvailability, NetworkingAvailabilityError> {
         unsafe { sys::SteamAPI_ISteamNetworkingSockets_InitAuthentication(self.sockets).try_into() }
+    }
+
+    /// Query our readiness to participate in authenticated communications.  A
+    /// SteamNetAuthenticationStatus_t callback is posted any time this status changes,
+    /// but you can use this function to query it at any time.
+    ///
+    /// The value of SteamNetAuthenticationStatus_t::m_eAvail is returned.  If you only
+    /// want this high level status, you can pass NULL for pDetails.  If you want further
+    /// details, pass non-NULL to receive them.
+    pub fn get_authentication_status(
+        &self,
+    ) -> Result<NetworkingAvailability, NetworkingAvailabilityError> {
+        unsafe {
+            sys::SteamAPI_ISteamNetworkingSockets_GetAuthenticationStatus(
+                self.sockets,
+                std::ptr::null_mut(),
+            )
+            .try_into()
+        }
     }
 
     /// Create a new poll group.
@@ -708,6 +727,22 @@ impl<Manager: 'static> NetConnection<Manager> {
     /// Fetch connection name.  Returns false if handle is invalid
     pub fn connection_name(&self) -> Result<(), InvalidHandle> {
         unimplemented!()
+    }
+
+    pub fn get_connection_info(&self) -> Result<NetConnectionInfo, InvalidHandle> {
+        let mut info = std::mem::MaybeUninit::<sys::SteamNetConnectionInfo_t>::uninit();
+        let was_successful = unsafe {
+            sys::SteamAPI_ISteamNetworkingSockets_GetConnectionInfo(
+                self.sockets,
+                self.handle,
+                info.as_mut_ptr(),
+            )
+        };
+        if was_successful {
+            Ok(NetConnectionInfo::from(unsafe { info.assume_init() }))
+        } else {
+            Err(InvalidHandle)
+        }
     }
 
     /// Flush any messages waiting on the Nagle timer and send them

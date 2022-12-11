@@ -5,11 +5,14 @@ use serde::{Deserialize, Serialize};
 use crate::networking_sockets::{InnerSocket, NetConnection};
 use crate::networking_types::NetConnectionError::UnhandledType;
 use crate::{Callback, Inner, SResult, SteamId};
-use std::ffi::{c_void, CString};
 use std::fmt::{Debug, Display, Formatter};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::panic::catch_unwind;
 use std::sync::Arc;
+use std::{
+    borrow::Cow,
+    ffi::{c_void, CString},
+};
 use std::{
     convert::{TryFrom, TryInto},
     ffi::CStr,
@@ -1046,6 +1049,14 @@ impl NetConnectionInfo {
             )
         }
     }
+
+    pub fn end_debug(&self) -> Option<Cow<str>> {
+        if self.inner.m_szEndDebug[0] == 0 {
+            None
+        } else {
+            Some(unsafe { CStr::from_ptr(self.inner.m_szEndDebug.as_ptr()) }.to_string_lossy())
+        }
+    }
 }
 
 impl Debug for NetConnectionInfo {
@@ -1184,6 +1195,11 @@ impl NetConnectionStatusChanged {
                             .connection_info
                             .end_reason()
                             .expect("disconnect event received, but no valid end reason was given"),
+                        end_reason_debug: self
+                            .connection_info
+                            .end_debug()
+                            .map(|s| s.into_owned())
+                            .unwrap_or_default(),
                     }))
                 } else {
                     Err(NetConnectionError::InvalidRemote)
@@ -1234,9 +1250,11 @@ impl<Manager> ConnectedEvent<Manager> {
     pub fn remote(&self) -> NetworkingIdentity {
         self.remote.clone()
     }
+
     pub fn user_data(&self) -> i64 {
         self.user_data
     }
+
     pub fn connection(&self) -> &NetConnection<Manager> {
         &self.connection
     }
@@ -1250,17 +1268,24 @@ pub struct DisconnectedEvent {
     remote: NetworkingIdentity,
     user_data: i64,
     end_reason: NetConnectionEnd,
+    end_reason_debug: String,
 }
 
 impl DisconnectedEvent {
     pub fn remote(&self) -> NetworkingIdentity {
         self.remote.clone()
     }
+
     pub fn user_data(&self) -> i64 {
         self.user_data
     }
+
     pub fn end_reason(&self) -> NetConnectionEnd {
         self.end_reason
+    }
+
+    pub fn end_reason_debug(&self) -> &str {
+        &self.end_reason_debug
     }
 }
 
