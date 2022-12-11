@@ -997,13 +997,11 @@ impl TryFrom<sys::ESteamNetworkingAvailability> for NetworkingAvailability {
 #[error("integer value could not be converted to enum")]
 pub struct InvalidEnumValue;
 
-/// Internal struct to handle network callbacks
 #[derive(Clone)]
 pub struct NetConnectionInfo {
     inner: sys::SteamNetConnectionInfo_t,
 }
 
-#[allow(dead_code)]
 impl NetConnectionInfo {
     /// Return the network identity of the remote peer.
     ///
@@ -1073,6 +1071,191 @@ impl Debug for NetConnectionInfo {
 
 impl From<sys::SteamNetConnectionInfo_t> for NetConnectionInfo {
     fn from(info: steamworks_sys::SteamNetConnectionInfo_t) -> Self {
+        Self { inner: info }
+    }
+}
+
+/// Quick connection state, pared down to something you could call
+/// more frequently without it being too big of a perf hit.
+#[derive(Clone)]
+pub struct NetConnectionRealTimeStatus {
+    inner: sys::SteamNetConnectionRealTimeStatus_t,
+}
+
+impl NetConnectionRealTimeStatus {
+    /// High level state of the connection
+    pub fn state(&self) -> Result<NetworkingConnectionState, InvalidConnectionState> {
+        self.inner.m_eState.try_into()
+    }
+
+    /// Current ping (ms)
+    pub fn ping_ms(&self) -> i32 {
+        self.inner.m_nPing
+    }
+
+    /// Connection quality measured locally, 0...1.  (Percentage of packets delivered
+    /// end-to-end in order).
+    pub fn connection_quality_local(&self) -> f32 {
+        self.inner.m_flConnectionQualityLocal
+    }
+
+    /// Packet delivery success rate as observed from remote host
+    pub fn connection_quality_remote(&self) -> f32 {
+        self.inner.m_flConnectionQualityRemote
+    }
+
+    /// Current data rates from recent history.
+    pub fn out_packets_per_sec(&self) -> f32 {
+        self.inner.m_flOutPacketsPerSec
+    }
+
+    pub fn out_bytes_per_sec(&self) -> f32 {
+        self.inner.m_flOutBytesPerSec
+    }
+
+    pub fn in_packets_per_sec(&self) -> f32 {
+        self.inner.m_flInPacketsPerSec
+    }
+
+    pub fn in_bytes_per_sec(&self) -> f32 {
+        self.inner.m_flInBytesPerSec
+    }
+
+    /// Estimate rate that we believe that we can send data to our peer.
+    /// Note that this could be significantly higher than m_flOutBytesPerSec,
+    /// meaning the capacity of the channel is higher than you are sending data.
+    /// (That's OK!)
+    pub fn send_rate_bytes_per_second(&self) -> i32 {
+        self.inner.m_nSendRateBytesPerSecond
+    }
+
+    /// Number of bytes pending to be sent.  This is data that you have recently
+    /// requested to be sent but has not yet actually been put on the wire.  The
+    /// reliable number ALSO includes data that was previously placed on the wire,
+    /// but has now been scheduled for re-transmission.  Thus, it's possible to
+    /// observe m_cbPendingReliable increasing between two checks, even if no
+    /// calls were made to send reliable data between the checks.  Data that is
+    /// awaiting the Nagle delay will appear in these numbers.
+    pub fn pending_unreliable(&self) -> i32 {
+        self.inner.m_cbPendingUnreliable
+    }
+
+    pub fn pending_reliable(&self) -> i32 {
+        self.inner.m_cbPendingReliable
+    }
+
+    /// Number of bytes of reliable data that has been placed the wire, but
+    /// for which we have not yet received an acknowledgment, and thus we may
+    /// have to re-transmit.
+    pub fn sent_unacked_reliable(&self) -> i32 {
+        self.inner.m_cbSentUnackedReliable
+    }
+
+    /// If you queued a message right now, approximately how long would that message
+    /// wait in the queue before we actually started putting its data on the wire in
+    /// a packet?
+    ///
+    /// In general, data that is sent by the application is limited by the bandwidth
+    /// of the channel.  If you send data faster than this, it must be queued and
+    /// put on the wire at a metered rate.  Even sending a small amount of data (e.g.
+    /// a few MTU, say ~3k) will require some of the data to be delayed a bit.
+    ///
+    /// Ignoring multiple lanes, the estimated delay will be approximately equal to
+    ///
+    ///		( m_cbPendingUnreliable+m_cbPendingReliable ) / m_nSendRateBytesPerSecond
+    ///
+    /// plus or minus one MTU.  It depends on how much time has elapsed since the last
+    /// packet was put on the wire.  For example, the queue might have *just* been emptied,
+    /// and the last packet placed on the wire, and we are exactly up against the send
+    /// rate limit.  In that case we might need to wait for one packet's worth of time to
+    /// elapse before we can send again.  On the other extreme, the queue might have data
+    /// in it waiting for Nagle.  (This will always be less than one packet, because as
+    /// soon as we have a complete packet we would send it.)  In that case, we might be
+    /// ready to send data now, and this value will be 0.
+    ///
+    /// This value is only valid if multiple lanes are not used.  If multiple lanes are
+    /// in use, then the queue time will be different for each lane, and you must use
+    /// the value in SteamNetConnectionRealTimeLaneStatus_t.
+    ///
+    /// Nagle delay is ignored for the purposes of this calculation.
+    pub fn sec_queue_time(&self) -> i64 {
+        self.inner.m_usecQueueTime
+    }
+}
+
+impl Debug for NetConnectionRealTimeStatus {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NetConnectionRealTimeStatus")
+            .field("state", &self.state())
+            .field("ping_ms", &self.ping_ms())
+            .field("connection_quality_local", &self.connection_quality_local())
+            .field(
+                "connection_quality_remote",
+                &self.connection_quality_remote(),
+            )
+            .field("out_packets_per_sec", &self.out_packets_per_sec())
+            .field("out_bytes_per_sec", &self.out_bytes_per_sec())
+            .field("in_packets_per_sec", &self.in_packets_per_sec())
+            .field("in_bytes_per_sec", &self.in_bytes_per_sec())
+            .field(
+                "send_rate_bytes_per_second",
+                &self.send_rate_bytes_per_second(),
+            )
+            .field("pending_unreliable", &self.pending_unreliable())
+            .field("pending_reliable", &self.pending_reliable())
+            .field("sent_unacked_reliable", &self.sent_unacked_reliable())
+            .field("sec_queue_time", &self.sec_queue_time())
+            .finish()
+    }
+}
+
+impl From<sys::SteamNetConnectionRealTimeStatus_t> for NetConnectionRealTimeStatus {
+    fn from(info: sys::SteamNetConnectionRealTimeStatus_t) -> Self {
+        Self { inner: info }
+    }
+}
+
+#[derive(Clone)]
+pub struct NetConnectionRealTimeLaneStatus {
+    inner: sys::SteamNetConnectionRealTimeLaneStatus_t,
+}
+
+impl NetConnectionRealTimeLaneStatus {
+    // Counters for this particular lane.  See the corresponding variables
+    // in SteamNetConnectionRealTimeStatus_t
+    pub fn pending_unreliable(&self) -> i32 {
+        self.inner.m_cbPendingUnreliable
+    }
+
+    pub fn pending_reliable(&self) -> i32 {
+        self.inner.m_cbPendingReliable
+    }
+
+    pub fn sent_unacked_reliable(&self) -> i32 {
+        self.inner.m_cbSentUnackedReliable
+    }
+
+    /// Lane-specific queue time.  This value takes into consideration lane priorities
+    /// and weights, and how much data is queued in each lane, and attempts to predict
+    /// how any data currently queued will be sent out.
+    pub fn sec_queue_time(&self) -> i64 {
+        self.inner.m_usecQueueTime
+    }
+}
+
+impl Debug for NetConnectionRealTimeLaneStatus {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NetConnectionRealTimeLaneStatus")
+            .field("pending_unreliable", &self.pending_unreliable())
+            .field("pending_reliable", &self.pending_reliable())
+            .field("sent_unacked_reliable", &self.sent_unacked_reliable())
+            .field("sec_queue_time", &self.sec_queue_time())
+            .finish()
+    }
+}
+
+impl From<sys::SteamNetConnectionRealTimeLaneStatus_t> for NetConnectionRealTimeLaneStatus {
+    fn from(info: sys::SteamNetConnectionRealTimeLaneStatus_t) -> Self {
         Self { inner: info }
     }
 }

@@ -1,9 +1,12 @@
-use crate::networking_types::{
-    ListenSocketEvent, MessageNumber, NetConnectionEnd, NetworkingAvailability,
-    NetworkingAvailabilityError, NetworkingConfigEntry, NetworkingIdentity, NetworkingMessage,
-    SendFlags, SteamIpAddr,
-};
 use crate::{networking_sockets_callback, networking_types::NetConnectionInfo};
+use crate::{
+    networking_types::{
+        ListenSocketEvent, MessageNumber, NetConnectionEnd, NetConnectionRealTimeStatus,
+        NetworkingAvailability, NetworkingAvailabilityError, NetworkingConfigEntry,
+        NetworkingIdentity, NetworkingMessage, SendFlags, SteamIpAddr,
+    },
+    SteamError,
+};
 use crate::{CallbackHandle, Inner, SResult};
 use std::convert::TryInto;
 use std::ffi::CString;
@@ -12,6 +15,7 @@ use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 
 use steamworks_sys as sys;
+use sys::EResult;
 
 /// Access to the steam networking sockets interface
 pub struct NetworkingSockets<Manager> {
@@ -729,6 +733,7 @@ impl<Manager: 'static> NetConnection<Manager> {
         unimplemented!()
     }
 
+    /// Returns basic information about the high-level state of the connection.
     pub fn get_connection_info(&self) -> Result<NetConnectionInfo, InvalidHandle> {
         let mut info = std::mem::MaybeUninit::<sys::SteamNetConnectionInfo_t>::uninit();
         let was_successful = unsafe {
@@ -742,6 +747,27 @@ impl<Manager: 'static> NetConnection<Manager> {
             Ok(NetConnectionInfo::from(unsafe { info.assume_init() }))
         } else {
             Err(InvalidHandle)
+        }
+    }
+
+    pub fn get_connection_real_time_status(
+        &self,
+    ) -> Result<NetConnectionRealTimeStatus, SteamError> {
+        let mut status = std::mem::MaybeUninit::<sys::SteamNetConnectionRealTimeStatus_t>::uninit();
+        unsafe {
+            let error: sys::EResult =
+                sys::SteamAPI_ISteamNetworkingSockets_GetConnectionRealTimeStatus(
+                    self.sockets,
+                    self.handle,
+                    status.as_mut_ptr(),
+                    0,
+                    std::ptr::null_mut(),
+                );
+            if error == EResult::k_EResultOK {
+                Ok(NetConnectionRealTimeStatus::from(status.assume_init()))
+            } else {
+                Err(error.into())
+            }
         }
     }
 
